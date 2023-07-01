@@ -1,0 +1,5 @@
+core.*
+make_core
+parse_core
+build
+.cache
