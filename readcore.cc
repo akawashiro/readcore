@@ -10,6 +10,9 @@
 #include <unistd.h>
 
 #include <string>
+#include <vector>
+
+#include "eflags.h"
 
 std::string ShowNT(uint32_t type) {
   if (type == NT_PRSTATUS) {
@@ -31,6 +34,19 @@ std::string ShowNT(uint32_t type) {
   } else {
     return "Unknown";
   }
+}
+
+std::string ConcatVectorOfString(const std::vector<std::string> &vec,
+                                 const std::string &sep = "") {
+  std::string ret = "{";
+  for (const auto &s : vec) {
+    if (ret.size() > 1) {
+      ret += sep;
+    }
+    ret += s;
+  }
+  ret += "}";
+  return ret;
 }
 
 int main(int argc, char const *argv[]) {
@@ -91,6 +107,9 @@ int main(int argc, char const *argv[]) {
           printf("    rip:      0x%016llx\n", regs->rip);
           printf("    cs:       0x%016llx\n", regs->cs);
           printf("    eflags:   0x%016llx\n", regs->eflags);
+          printf("              %s\n",
+                 ConcatVectorOfString(X86EFlagsToStrings(regs->eflags), "|")
+                     .c_str());
           printf("    rsp:      0x%016llx\n", regs->rsp);
           printf("    ss:       0x%016llx\n", regs->ss);
           printf("    fs_base:  0x%016llx\n", regs->fs_base);

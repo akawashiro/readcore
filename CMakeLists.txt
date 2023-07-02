@@ -8,4 +8,4 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_executable(make_core make_core.cc)
-add_executable(readcore readcore.cc)
+add_executable(readcore readcore.cc eflags.cc)
