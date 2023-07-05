@@ -9,6 +9,7 @@
 #include <sys/user.h>
 #include <unistd.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -49,6 +50,11 @@ std::string ConcatVectorOfString(const std::vector<std::string> &vec,
   return ret;
 }
 
+std::vector<uint8_t> GetMemorySlice(uintptr_t addr, size_t size) {
+  std::vector<uint8_t> ret;
+  return ret;
+}
+
 int main(int argc, char const *argv[]) {
   if (argc != 2) {
     printf("Usage: %s <path to core file>\n", argv[0]);
@@ -61,6 +67,8 @@ int main(int argc, char const *argv[]) {
       mmap(NULL, mapped_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0));
 
   const Elf64_Ehdr *ehdr = reinterpret_cast<const Elf64_Ehdr *>(head);
+
+  std::optional<unsigned long long int> rax = std::nullopt;
   for (size_t pi = 0; pi < ehdr->e_phnum; pi++) {
     const Elf64_Phdr *phdr =
         (reinterpret_cast<const Elf64_Phdr *>(head + ehdr->e_phoff)) + pi;
@@ -88,6 +96,7 @@ int main(int argc, char const *argv[]) {
           const struct user_regs_struct *regs =
               reinterpret_cast<const struct user_regs_struct *>(
                   prstatus->pr_reg);
+          rax = regs->rax;
           printf("    r15:      0x%016llx\n", regs->r15);
           printf("    r14:      0x%016llx\n", regs->r14);
           printf("    r13:      0x%016llx\n", regs->r13);
@@ -118,6 +127,30 @@ int main(int argc, char const *argv[]) {
           printf("    es:       0x%016llx\n", regs->es);
           printf("    fs:       0x%016llx\n", regs->fs);
           printf("    gs:       0x%016llx\n", regs->gs);
+        } else if (type == NT_FILE) {
+          printf("Files:\n");
+          const char *file = note + 4 * 3 + name_size;
+          uint64_t count = *reinterpret_cast<const uint64_t *>(file);
+          uint64_t page_size =
+              *reinterpret_cast<const uint64_t *>(file + sizeof(uint64_t));
+          const char *filenames =
+              file + sizeof(uint64_t) * 2 + count * 3 * sizeof(uint64_t);
+          printf("    count: %lu pagesize: %lu\n", count, page_size);
+          for (size_t i = 0; i < count; i++) {
+            uint64_t start, end, file_ofs;
+            start = *reinterpret_cast<const uint64_t *>(
+                file + sizeof(uint64_t) * 2 + i * 3 * sizeof(uint64_t));
+            end = *reinterpret_cast<const uint64_t *>(
+                file + sizeof(uint64_t) * 2 + i * 3 * sizeof(uint64_t) +
+                sizeof(uint64_t));
+            file_ofs = *reinterpret_cast<const uint64_t *>(
+                file + sizeof(uint64_t) * 2 + i * 3 * sizeof(uint64_t) +
+                sizeof(uint64_t) * 2);
+            printf("    start: 0x%016llx end: 0x%016llx page offset: 0x%016llx\n",
+                   start, end, file_ofs);
+            printf("    %s\n", filenames);
+            filenames += 1 + strlen((char *)filenames);
+          }
         }
 
         offset_in_note += 4 * 3 + name_size + desc_size;
